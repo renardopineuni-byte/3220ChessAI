@@ -1,0 +1,10 @@
+* make git repo for collaboration
+* Make chess GUI
+* Enable 2 player mode on GUI
+* Determine two Agent Strategies
+* Build individual agent
+* Add agent option to GUI 
+* Have agents play against each other
+* Done!
+
+https://youtu.be/U4ogK0MIzqk?si=JfErmxvG4kM2aJli
