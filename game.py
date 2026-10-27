@@ -89,10 +89,11 @@ def run_cli():
     from randomAgent import RandomAgent
     from humanAgent import HumanAgent
     from sniperAgent import SniperAgent
+    from alphabetaAgent import AlphaBetaAgent
 
     if choose_mode() == "1":
         human_is_white = choose_colour()
-        human, ai = HumanAgent("You"), SniperAgent("AI")
+        human, ai = HumanAgent("You"), AlphaBetaAgent("AI")
         game = Game(human, ai) if human_is_white else Game(ai, human)
         print("\nType moves like 'e4', 'Nf3' or 'g1f3'. Type 'quit' to exit.\n")
         print(render_board(game.board, human_is_white), "\n")
@@ -104,7 +105,7 @@ def run_cli():
             print(render_board(game.board, human_is_white), "\n")
         print("Result:", game.board.result(claim_draw=True))
     else:
-        game = Game(SniperAgent("White"), RandomAgent("Black"))
+        game = Game(AlphaBetaAgent("White"), RandomAgent("Black"))
         result = game.play(verbose=True)
         print(render_board(game.board))
         print("Result:", result)
