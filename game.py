@@ -4,6 +4,8 @@ from agent import Agent
 
 
 class Game:
+    #takes 2 agents that inherit from the agent class
+    #takes a starting fen string to begin the game from any position. None to start from an unmoved board
     def __init__(self, white: Agent, black: Agent, fen: str = None):
         self.board = chess.Board(fen) if fen else chess.Board()
         self.agents = {chess.WHITE: white, chess.BLACK: black}
@@ -11,12 +13,29 @@ class Game:
         self.san_history = []   # matching SAN strings, e.g. 'Nf3'
         self.last_san = None
 
+    # property tag allows the return of the function to be treated as variable in other files
     @property
     def current_agent(self) -> Agent:
         return self.agents[self.board.turn]
 
     def is_over(self) -> bool:
         return self.board.is_game_over()
+
+    def apply_move(self, move: chess.Move, who: str = "Player") -> chess.Move:
+        """Validate and play a move, recording it in the histories.
+
+        Shared by step() (agents choosing moves) and the GUI (human clicks),
+        so both paths keep move_history / san_history consistent.
+        """
+        if move not in self.board.legal_moves:
+            raise ValueError(f"{who} returned illegal move: {move}")
+
+        # SAN depends on the position, so it must be computed BEFORE pushing
+        self.last_san = self.board.san(move)
+        self.board.push(move)
+        self.move_history.append(move)
+        self.san_history.append(self.last_san)
+        return move
 
     def step(self) -> chess.Move:
         """Ask the agent to move, validate its move, play it, and return it."""
@@ -26,18 +45,9 @@ class Game:
         agent = self.current_agent
         # Give the agent a copy so it can't corrupt the real board
         move = agent.choose_move(self.board.copy())
+        return self.apply_move(move, agent.name)
 
-        if move not in self.board.legal_moves:
-            raise ValueError(f"{agent.name} returned illegal move: {move}")
-
-        # SAN depends on the position, so it must be computed BEFORE pushing
-        self.last_san = self.board.san(move)
-        self.board.push(move)
-        self.move_history.append(move)
-        self.san_history.append(self.last_san)
-        return move
-
-    def play(self, verbose: bool = False, max_moves: int = 100) -> str:
+    def play(self, verbose: bool = False, max_moves: int = 150) -> str:
         """Run until the game ends. Returns the result string, e.g. '1-0'."""
         while not self.is_over() and len(self.move_history) < max_moves:
             mover = self.current_agent.name
@@ -85,8 +95,7 @@ def choose_colour() -> bool:
 
 
 def run_cli():
-    # Swap RandomAgent for the real child agents once they're written
-    from randomAgent import RandomAgent
+    # Text-only fallback. The GUI lives in chessboard.py (python chessboard.py).
     from humanAgent import HumanAgent
     from sniperAgent import SniperAgent
     from alphabetaAgent import AlphaBetaAgent
@@ -105,10 +114,11 @@ def run_cli():
             print(render_board(game.board, human_is_white), "\n")
         print("Result:", game.board.result(claim_draw=True))
     else:
-        game = Game(AlphaBetaAgent("White"), RandomAgent("Black"))
+        game = Game(AlphaBetaAgent("White"), SniperAgent("Black"))
         result = game.play(verbose=True)
         print(render_board(game.board))
         print("Result:", result)
+
 
 if __name__ == "__main__":
     run_cli()

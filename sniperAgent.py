@@ -14,16 +14,23 @@ PIECE_VALUES = {
     chess.KING: 0,
 }
 
-class SniperAgent(Agent):
-    """Plain fixed-depth minimax using Agent.evaluate (White minus Black material).
+# Long-range (sliding) attackers whose reach we reward on top of material.
+LONG_RANGE_PIECES = (chess.BISHOP, chess.ROOK, chess.QUEEN)
+REACH_WEIGHT = 0.1    # per square a bishop/rook attacks (open lines = bigger reach)
+TARGET_WEIGHT = 0.1   # per point of value of each enemy piece they attack
 
-    White maximises the score, Black minimises it.
+
+class SniperAgent(Agent):
+    """Fixed-depth minimax with alpha-beta pruning, using Agent.evaluate.
+
+    White maximises the score, Black minimises it. Returns the same score as
+    plain minimax at the same depth, but visits far fewer positions.
     """
 
-    def __init__(self, name: str = "Minimax", depth: int = 3):
+    def __init__(self, name: str = "AlphaBeta", depth: int = 4):
         super().__init__(name)
         self.depth = depth
-        self.nodes_searched = 0  # handy for comparing against alpha-beta later
+        self.nodes_searched = 0
 
     def choose_move(self, board: chess.Board) -> chess.Move:
         self.nodes_searched = 0
@@ -31,9 +38,15 @@ class SniperAgent(Agent):
         best_score = float("-inf") if maximising else float("inf")
         best_moves = []
 
-        for move in board.legal_moves:
+        for move in self._ordered_moves(board):
             board.push(move)
-            score = self._minimax(board, self.depth - 1)
+            # Scores are integers, so widening the window by 1 keeps moves that
+            # TIE the best score exact (needed for the random tie-break) while
+            # still pruning anything strictly worse.
+            if maximising:
+                score = self._alphabeta(board, self.depth - 1, best_score - 1, float("inf"))
+            else:
+                score = self._alphabeta(board, self.depth - 1, float("-inf"), best_score + 1)
             board.pop()
 
             if (maximising and score > best_score) or (not maximising and score < best_score):
@@ -41,10 +54,9 @@ class SniperAgent(Agent):
             elif score == best_score:
                 best_moves.append(move)
 
-        # Random tie-break so equal moves don't make every game identical
         return random.choice(best_moves)
 
-    def _minimax(self, board: chess.Board, depth: int) -> float:
+    def _alphabeta(self, board: chess.Board, depth: int, alpha: float, beta: float) -> float:
         self.nodes_searched += 1
 
         if board.is_game_over():
@@ -53,35 +65,69 @@ class SniperAgent(Agent):
             return self.evaluate(board)
 
         if board.turn == chess.WHITE:
-            best = float("-inf")
-            for move in board.legal_moves:
+            value = float("-inf")
+            for move in self._ordered_moves(board):
                 board.push(move)
-                best = max(best, self._minimax(board, depth - 1))
+                value = max(value, self._alphabeta(board, depth - 1, alpha, beta))
                 board.pop()
+                alpha = max(alpha, value)
+                if alpha >= beta:  # Black would never allow this line
+                    break
         else:
-            best = float("inf")
-            for move in board.legal_moves:
+            value = float("inf")
+            for move in self._ordered_moves(board):
                 board.push(move)
-                best = min(best, self._minimax(board, depth - 1))
+                value = min(value, self._alphabeta(board, depth - 1, alpha, beta))
                 board.pop()
-        return best
+                beta = min(beta, value)
+                if alpha >= beta:  # White would never allow this line
+                    break
+        return value
+
+    @staticmethod
+    def _ordered_moves(board: chess.Board):
+        """Captures first: good moves early means more cutoffs."""
+        return sorted(board.legal_moves, key=board.is_capture, reverse=True)
 
     @staticmethod
     def _terminal_score(board: chess.Board, depth: int) -> float:
         if board.is_checkmate():
-            # Side to move has been mated. Extra depth left = mate found sooner = better.
-            bonus = MATE_SCORE + depth
+            bonus = MATE_SCORE + depth  # faster mate = better
             return -bonus if board.turn == chess.WHITE else bonus
         return 0  # stalemate, insufficient material, etc.
 
-    def evaluate(self, board: chess.Board) -> int:
-        """Material score: White's points minus Black's points.
+    def evaluate(self, board: chess.Board) -> float:
+        """White's score minus Black's score.
 
-        Positive means White is ahead, negative means Black is ahead.
+        Each side scores material plus a bonus for the long-range attacks of
+        its bishops and rooks. Positive means White is ahead, negative means
+        Black is ahead.
         """
-        score = 0
+        return self._side_score(board, chess.WHITE) - self._side_score(board, chess.BLACK)
+
+    def _side_score(self, board: chess.Board, color: chess.Color) -> float:
+        score = 0.0
         for piece_type, value in PIECE_VALUES.items():
-            score += value * len(board.pieces(piece_type, chess.WHITE))
-            score -= value * len(board.pieces(piece_type, chess.BLACK))
+            score += value * len(board.pieces(piece_type, color))
+        score += self._long_range_score(board, color)
         return score
+
+    @staticmethod
+    def _long_range_score(board: chess.Board, color: chess.Color) -> float:
+        """Reward bishops/rooks for how far they see and what they attack.
+
+        board.attacks(square) follows each direction until it hits a piece, so a
+        piece on an open line attacks more squares and scores higher than one
+        hemmed in by its own pawns.
+        """
+        bonus = 0.0
+        for piece_type in LONG_RANGE_PIECES:
+            for square in board.pieces(piece_type, color):
+                attacked = board.attacks(square)
+                bonus += REACH_WEIGHT * len(attacked)
+                for target in attacked:
+                    piece = board.piece_at(target)
+                    if piece is not None and piece.color != color:
+                        bonus += TARGET_WEIGHT * PIECE_VALUES[piece.piece_type]
+        return bonus
 

@@ -4,8 +4,8 @@ import chess
 class Agent:
     """Common superclass for every chess agent.
 
-    Each child agent (yours, your partner's) extends this and implements
-    choose_move(). Game only ever relies on this interface.
+    Both child agent extends this and implements choose_move()
+    Game only ever relies on this interface.
     """
 
     def __init__(self, name: str = "Agent"):
