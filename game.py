@@ -98,11 +98,11 @@ def run_cli():
     # Text-only fallback. The GUI lives in chessboard.py (python chessboard.py).
     from humanAgent import HumanAgent
     from sniperAgent import SniperAgent
-    from alphabetaAgent import AlphaBetaAgent
+    from kingAgent import kingAgent
 
     if choose_mode() == "1":
         human_is_white = choose_colour()
-        human, ai = HumanAgent("You"), AlphaBetaAgent("AI")
+        human, ai = HumanAgent("You"), SniperAgent("AI")
         game = Game(human, ai) if human_is_white else Game(ai, human)
         print("\nType moves like 'e4', 'Nf3' or 'g1f3'. Type 'quit' to exit.\n")
         print(render_board(game.board, human_is_white), "\n")
@@ -114,7 +114,7 @@ def run_cli():
             print(render_board(game.board, human_is_white), "\n")
         print("Result:", game.board.result(claim_draw=True))
     else:
-        game = Game(AlphaBetaAgent("White"), SniperAgent("Black"))
+        game = Game(SniperAgent("White"), kingAgent("Black"))
         result = game.play(verbose=True)
         print(render_board(game.board))
         print("Result:", result)
