@@ -7,6 +7,7 @@ import chess
 from game import Game
 from humanAgent import HumanAgent
 from sniperAgent import SniperAgent
+from kingAgent import kingAgent
 
 # ---------------------------------------------------------------- constants
 SQ = 60                       # square size in px
@@ -23,11 +24,12 @@ DARK = (150, 150, 150)
 #file path of piece pictures
 ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game")
 PIECE_NAMES = {chess.PAWN: "pawn", chess.ROOK: "rook", chess.KNIGHT: "knight",
-               chess.BISHOP: "bishop", chess.QUEEN: "queen", chess.KING: "king"}
+            chess.BISHOP: "bishop", chess.QUEEN: "queen", chess.KING: "king"}
 
 # Agents the human can pick from. Add new agents here.
 AGENT_FACTORIES = {
-    "Sniper": lambda: SniperAgent("Sniper")
+    "Sniper": lambda: SniperAgent("Sniper"),
+    "King": lambda: kingAgent("King", depth=3),
 }
 
 MENU_RECT = pygame.Rect(BOARD + 10, BOARD + 15, 105, 50)
@@ -134,6 +136,7 @@ class Session:
             self.pending, self.thinking = None, False
             if err:
                 self.over_text = f"Agent error: {err}"
+                print(f"Agent error: {err}")
                 return
             try:
                 self.game.apply_move(move, self.game.current_agent.name)
@@ -320,7 +323,8 @@ def new_session(mode, colour=None, agent_name=None):
     # AI vs AI: the pair's two agents face each other
     names = list(AGENT_FACTORIES)
     # runs the game with the 2 AIs. Use Index 0 for Sniper and index 1 for Khy.
-    game = Game(AGENT_FACTORIES[names[0]](), AGENT_FACTORIES[names[0]]())
+    #print(AGENT_FACTORIES[names[1]])
+    game = Game(AGENT_FACTORIES[names[0]](), AGENT_FACTORIES[names[1]]())
     return Session(game, None)
 
 
@@ -408,3 +412,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
