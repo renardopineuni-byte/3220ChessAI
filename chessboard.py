@@ -1,6 +1,7 @@
 #gui of the project
 import os
 import threading
+from datetime import datetime
 import pygame
 import chess
 
@@ -17,6 +18,11 @@ BAR = 80                      # bottom status bar height
 W, H = BOARD + SIDEBAR, BOARD + BAR
 FPS = 60
 AI_DELAY_MS = 400             # pause between moves in AI vs AI so it's watchable
+SERIES_GAMES = 5              # number of games played in AI vs AI mode
+NEXT_GAME_DELAY_MS = 2000     # pause between games so the result can be read
+# Moves of the most recent AI vs AI run (overwritten every run)
+RESULTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "ai_vs_ai_results.txt")
 
 LIGHT = (222, 222, 222)
 DARK = (150, 150, 150)
@@ -24,7 +30,7 @@ DARK = (150, 150, 150)
 #file path of piece pictures
 ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game")
 PIECE_NAMES = {chess.PAWN: "pawn", chess.ROOK: "rook", chess.KNIGHT: "knight",
-            chess.BISHOP: "bishop", chess.QUEEN: "queen", chess.KING: "king"}
+               chess.BISHOP: "bishop", chess.QUEEN: "queen", chess.KING: "king"}
 
 # Agents the human can pick from. Add new agents here.
 AGENT_FACTORIES = {
@@ -69,11 +75,80 @@ def load_images():
     return images
 
 
+#AI vs AI series: several games, colours alternate, results logged to a file
+class Series:
+
+    def __init__(self, n_games=SERIES_GAMES):
+        self.n_games = n_games
+        self.names = list(AGENT_FACTORIES)[:2]       # the two competing agents
+        self.scores = {n: 0.0 for n in self.names}   # win = 1, draw = 0.5 each
+        self.wins = {n: 0 for n in self.names}
+        self.draws = 0
+        self.game_no = 0
+        self.white = self.black = None               # agent names this game
+        self.recorded = True                         # current game logged yet?
+        self.finished = False
+        self.next_game_at = 0
+        # "w" wipes the previous run's file so it only holds the newest results
+        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+            f.write(f"AI vs AI - {self.names[0]} vs {self.names[1]} "
+                    f"({n_games} games)\n")
+            f.write(f"Run started: {datetime.now():%Y-%m-%d %H:%M:%S}\n")
+
+    def new_game(self):
+        """Build the next game. Colours swap every game (game 1: first agent is White)."""
+        self.game_no += 1
+        a, b = self.names
+        self.white, self.black = (a, b) if self.game_no % 2 == 1 else (b, a)
+        self.recorded = False
+        print(f"\nGame {self.game_no}/{self.n_games}: "
+              f"{self.white} (White) vs {self.black} (Black)")
+        return Game(AGENT_FACTORIES[self.white](), AGENT_FACTORIES[self.black]())
+
+    def record(self, game, result_text, winner):
+        """Print the game's winner to the console and append its moves to the file."""
+        if winner is None:
+            self.draws += 1
+            for n in self.names:
+                self.scores[n] += 0.5
+            verdict = "Draw"
+        else:
+            name = self.white if winner == chess.WHITE else self.black
+            colour = "White" if winner == chess.WHITE else "Black"
+            self.wins[name] += 1
+            self.scores[name] += 1
+            verdict = f"{name} ({colour}) wins"
+        detail = result_text if winner is None else f"{verdict} - {result_text.split(' - ')[0]}"
+        print(f"Game {self.game_no}/{self.n_games} result: {detail}")
+
+        san = game.san_history
+        with open(RESULTS_FILE, "a", encoding="utf-8") as f:
+            f.write(f"\nGame {self.game_no}: {self.white} (White) vs {self.black} (Black)\n")
+            for i in range(0, len(san), 2):
+                f.write(f"{i // 2 + 1}. " + " ".join(san[i:i + 2]) + "\n")
+            f.write(f"Result: {detail}\n")
+        self.recorded = True
+
+    def summary(self):
+        a, b = self.names
+        return (f"{a} {self.scores[a]:g} - {b} {self.scores[b]:g} "
+                f"(wins {self.wins[a]}-{self.wins[b]}, draws {self.draws})")
+
+    def finish(self):
+        self.finished = True
+        text = f"Final score: {self.summary()}"
+        print(f"\n{text}")
+        with open(RESULTS_FILE, "a", encoding="utf-8") as f:
+            f.write(f"\n{text}\n")
+
+
 #actual game processing
 class Session:
 
-    def __init__(self, game: Game, human_colour):
+    def __init__(self, game: Game, human_colour, series: Series = None):
         self.game = game
+        self.series = series                      # only set for AI vs AI
+        self.winner = None                        # chess.WHITE / BLACK / None (draw)
         self.human_colour = human_colour          # chess.WHITE / BLACK / None (AI vs AI)
         self.white_bottom = human_colour != chess.BLACK
         self.selected = None                      # selected square (human)
@@ -98,6 +173,7 @@ class Session:
         if board.is_game_over(claim_draw=True):
             outcome = board.outcome(claim_draw=True)
             reason = outcome.termination.name.replace("_", " ").title()
+            self.winner = outcome.winner
             if outcome.winner is None:
                 self.over_text = f"Draw - {reason}"
             else:
@@ -111,6 +187,30 @@ class Session:
             return
         winner = "Black" if self.human_colour == chess.WHITE else "White"
         self.over_text = f"You forfeited - {winner} wins"
+
+    def end_by_fault(self, text):
+        """An agent crashed or played an illegal move: the side to move loses."""
+        self.over_text = text
+        self.winner = not self.game.board.turn
+
+    def advance_series(self, now):
+        """AI vs AI: log the finished game, then start the next one (or finish)."""
+        s = self.series
+        if s is None or s.finished:
+            return
+        if not s.recorded:
+            s.record(self.game, self.over_text, self.winner)
+            if s.game_no >= s.n_games:
+                s.finish()
+                self.over_text = f"Series over - {s.summary()}"
+            else:
+                s.next_game_at = now + NEXT_GAME_DELAY_MS
+        elif now >= s.next_game_at:
+            self.game = s.new_game()
+            self.clear_selection()
+            self.over_text = self.winner = None
+            self.scroll = 0
+            self.next_ai_at = now
 
     # AI runs in a thread so the window never freezes while searching
     def start_ai(self):
@@ -129,19 +229,20 @@ class Session:
     def update(self, now):
         """Called once per frame: collect AI moves, start new searches."""
         if self.over_text:
+            self.advance_series(now)
             return
 
         if self.pending is not None:
             move, err = self.pending
             self.pending, self.thinking = None, False
             if err:
-                self.over_text = f"Agent error: {err}"
+                self.end_by_fault(f"Agent error: {err}")
                 print(f"Agent error: {err}")
                 return
             try:
                 self.game.apply_move(move, self.game.current_agent.name)
             except ValueError as exc:
-                self.over_text = str(exc)
+                self.end_by_fault(str(exc))
                 return
             self.next_ai_at = now + AI_DELAY_MS
             self.scroll = 0
@@ -265,17 +366,19 @@ def draw_game(screen, s, fonts, images):
 
 
 def status_text(s):
+    sr = s.series
+    prefix = f"G{sr.game_no}/{sr.n_games}: " if sr and not sr.finished else ""
     if s.over_text:
-        return s.over_text
+        return prefix + s.over_text
     board = s.game.board
     side = "White" if board.turn == chess.WHITE else "Black"
     if s.thinking:
-        return f"{s.game.current_agent.name} ({side}) is thinking..."
+        return f"{prefix}{s.game.current_agent.name} ({side}) is thinking..."
     if s.is_human_turn():
         return f"Your move ({side})"
     if s.human_colour is None and s.paused:
-        return "Paused - SPACE resume, N step"
-    return f"{side} to move"
+        return f"{prefix}Paused - SPACE resume, N step"
+    return f"{prefix}{side} to move"
 
 
 def draw_button(screen, fonts, rect, label, colour):
@@ -320,12 +423,10 @@ def new_session(mode, colour=None, agent_name=None):
         human_colour = chess.WHITE if colour == "white" else chess.BLACK
         game = Game(human, ai) if human_colour == chess.WHITE else Game(ai, human)
         return Session(game, human_colour)
-    # AI vs AI: the pair's two agents face each other
-    names = list(AGENT_FACTORIES)
-    # runs the game with the 2 AIs. Use Index 0 for Sniper and index 1 for Khy.
-    #print(AGENT_FACTORIES[names[1]])
-    game = Game(AGENT_FACTORIES[names[0]](), AGENT_FACTORIES[names[1]]())
-    return Session(game, None)
+    # AI vs AI: the first two agents play a series of SERIES_GAMES games,
+    # swapping colours every game. Index 0 = Sniper, index 1 = King.
+    series = Series()
+    return Session(series.new_game(), None, series)
 
 
 # --------------------------------------------------------------------- main
@@ -412,4 +513,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

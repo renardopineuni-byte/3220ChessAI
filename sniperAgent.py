@@ -27,7 +27,7 @@ class SniperAgent(Agent):
     plain minimax at the same depth, but visits far fewer positions.
     """
 
-    def __init__(self, name: str = "AlphaBeta", depth: int = 4):
+    def __init__(self, name: str = "AlphaBeta", depth: int = 3):
         super().__init__(name)
         self.depth = depth
         self.nodes_searched = 0
@@ -106,6 +106,7 @@ class SniperAgent(Agent):
         return self._side_score(board, chess.WHITE) - self._side_score(board, chess.BLACK)
 
     def _side_score(self, board: chess.Board, color: chess.Color) -> float:
+        #adds a predefined score for each piece type on a side
         score = 0.0
         for piece_type, value in PIECE_VALUES.items():
             score += value * len(board.pieces(piece_type, color))

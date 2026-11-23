@@ -1,0 +1,91 @@
+AI vs AI - Sniper vs King (5 games)
+Run started: 2026-11-22 12:43:41
+
+Game 1: Sniper (White) vs King (Black)
+1. d4 Nh6
+2. Bf4 Rg8
+3. Qd3 Rh8
+4. Na3 Rg8
+5. Qxh7 Rh8
+6. Qxh8 Nc6
+7. Rd1 Nxd4
+8. Rxd4 c6
+9. Nc4 Qa5+
+10. Nxa5 Rb8
+11. Bxb8 Ng8
+12. Qxg8 g6
+13. Bxa7 Kd8
+14. Qxf8+ Kc7
+15. Bc5 Kb8
+16. Bxe7 Ka8
+17. Qxc8+ Ka7
+18. Qxb7#
+Result: Sniper (White) wins - Checkmate
+
+Game 2: King (White) vs Sniper (Black)
+1. Nh3 d5
+2. Ng5 e5
+3. Nxh7 Rxh7
+4. Rg1 Qf6
+5. Rh1 Bg4
+6. Rg1 Rxh2
+7. Rh1 Rxh1
+8. Nc3 d4
+9. Nd5 Qd6
+10. Nxc7+ Qxc7
+11. Rb1 Qc6
+12. Ra1 Bb4
+13. Rb1 Qxg2
+14. Ra1 Rxf1#
+Result: Sniper (Black) wins - Checkmate
+
+Game 3: Sniper (White) vs King (Black)
+1. d4 Nh6
+2. Bf4 Rg8
+3. Qd3 Rh8
+4. Na3 Rg8
+5. Qxh7 Rh8
+6. Qxh8 Nc6
+7. e4 Nxd4
+8. O-O-O Nb3+
+9. cxb3 Rb8
+10. Bb5 Nf5
+11. exf5 f6
+12. Qh5+ g6
+13. Qxg6#
+Result: Sniper (White) wins - Checkmate
+
+Game 4: King (White) vs Sniper (Black)
+1. Nh3 d5
+2. Ng5 e5
+3. Nxh7 Rxh7
+4. Rg1 Qf6
+5. Rh1 Bg4
+6. Rg1 Rxh2
+7. Rh1 Rxh1
+8. Nc3 d4
+9. Nd5 Qd6
+10. Nxc7+ Qxc7
+11. Rb1 Qc6
+12. Ra1 Bb4
+13. Rb1 Qxg2
+14. Ra1 Rxf1#
+Result: Sniper (Black) wins - Checkmate
+
+Game 5: Sniper (White) vs King (Black)
+1. d4 Nh6
+2. Bf4 Rg8
+3. Qd3 Rh8
+4. Na3 Rg8
+5. Qxh7 Rh8
+6. Qxh8 Nc6
+7. e4 Nxd4
+8. O-O-O Nb3+
+9. cxb3 Rb8
+10. Bb5 Nf5
+11. exf5 f6
+12. Qh5+ g6
+13. Qxg6#
+Result: Sniper (White) wins - Checkmate
+
+Final score: Sniper 5 - King 0 (wins 5-0, draws 0)

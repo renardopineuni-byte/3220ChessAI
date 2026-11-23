@@ -38,7 +38,7 @@ def eval_strat(board: chess.Board) -> float:
       return -99999
     else:
       return 99999
-  if board.is_stalemate():
+  if board.is_stalemate():git 
     return 0
   
   white_score, black_score = 0, 0
