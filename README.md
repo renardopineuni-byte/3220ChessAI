@@ -6,10 +6,8 @@ Both agents inherit from a parent ‘agent’ class that has an unimplemented ch
 sniperAgent by Renardo Pine
 Focusing on maintaining distance with the queen bishop and rook while keeping pieces under attack
 
-Both agents inherit from a parent agent class that has an unimplemented chose agent function
-chose_move(board) returns a move to played given any valid board position
 kingAgent by Khyana Panton
-Focuses on surrounding and attacking the enemy king
+Focuses on surrounding and attacking the enemy king 
 
 To play: Run chessboard.py and choose either Human (You) vs AI or AI vs AI.
 In Human vs AI, choose your color and AI opponent
